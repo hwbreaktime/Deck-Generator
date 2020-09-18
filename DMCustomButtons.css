@@ -1,0 +1,109 @@
+button{
+	text-align: center;
+	font-size: 16px;
+	color: black;
+	background-color: #9379b5;
+	width: 100%;
+	border-color: #e0dae8;
+	border-radius: 6px;
+	font-weight: bold;
+}
+
+/*
+select {
+  -webkit-appearance: none;
+  border: 1px solid red;
+  outline: 0;
+  color: white;
+  border-color: red;
+  border-radius: 6px;
+  background-color: red;
+  width: 40px;
+  text-align-last: center;
+  font-size: 12pt;
+  padding-bottom: 2px;
+}
+p {
+	text-align: center;
+	bottom: 0px;
+}
+/* CHECK BOXES */
+#filler{
+	background:rgba(255,255,255, 0.0);
+	color: rgba(255,255,255, 0.0);
+	-webkit-user-select: none; /* Safari */
+	moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* IE10+/Edge */
+	user-select: none; /* Standard */
+}
+#cb {
+	border-style: solid;
+    background:rgba(255,255,255, 0.6);
+	font-style: bold;
+	border-width: 2px;
+    border-radius:6px;
+	border-color: #a35a0c;
+    overflow: none;
+	-webkit-user-select: none; /* Safari */
+	moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* IE10+/Edge */
+	user-select: none; /* Standard */
+}
+
+#cb label span {
+    text-align:center;
+    padding:3px 0px;
+    display:block;
+}
+#cb label input {
+	display: none;
+}
+#cb input:checked + span {
+	border-radius:4px;
+	border-width: 2px;
+    background-color:#a11823;
+	border-color: black;
+    color:black;
+	font-style: bold;
+}
+/* RADIO BUTTONS */
+.divRB {
+	text-align: center;
+    display : block;
+	width: 60%;
+	background-color: rgba(255,255,255, 0.6);
+	border-radius: 6px;
+	margin-left: auto;
+	margin-right: auto;
+	-webkit-user-select: none; /* Safari */
+	moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* IE10+/Edge */
+	user-select: none; /* Standard */
+}
+.divRBthreat {
+	text-align: center;
+    display : block;
+	background-color: rgba(255,255,255, 0.6);
+	border-radius: 6px;
+	margin-left: auto;
+	margin-right: auto;
+	-webkit-user-select: none; /* Safari */
+	moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* IE10+/Edge */
+	user-select: none; /* Standard */
+}
+.RB > input{ /* HIDE RADIO */
+    visibility: hidden; /* Makes input not-clickable */
+    position: absolute; /* Remove input from document flow */
+}
+.RB > input + div{ /* DIV STYLES */
+    cursor:pointer;
+    border:2px solid transparent;
+}
+.RB > input:checked + div{ /* (RADIO CHECKED) DIV STYLES */
+    border: 4px solid #000000;
+	background-color: rgba(153,17,17);
+	color:#fff;
+	border-radius: 6px;
+}
+*/

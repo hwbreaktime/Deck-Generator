@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<title>Deep Madness Companion Tool</title>
+	<link rel="stylesheet" href="DMCustomTables.css">
+	<link rel="stylesheet" href="DMCustomButtons.css">
+<script>
+/*
+ To be added:
+ 	Scenario Persistent effects
+	Event Track Importing
+
+*/
+/*
+Variables
+*/
+var scenario; // int - used to store which scenario variable is used
+var SpawnTypetopcard; // int - used to know the array index representing the top card of monster spawn deck
+var DevouredRoomtopcard; // int - used to know the array index representing the top card of spawn location deck
+var Roomtopcard; // int - used to know the array index representing the next room card that will be devoured
+var turn; //int - used to know what turn it is for looking up events and spawn count
+var devouredDeck = []; //used to track rooms that are actively devoured; increased as rooms are devoured; used as the room spawn deck
+var roomDeck = []; //used to track rooms that will be devoured
+var spawnDeck = []; // array used to store the order of card numbers used in a Game
+var spawnDecktopcard; // int - used to store the index of the top card
+
+/*
+Constants
+*/
+var scenarioTitle = ["Scenario 0","Chapter 1 Crawling Asphyxia","Chapter 2 Last Shuttle to Hell","Chapter 3 Bathophobia","Chapter 4 Through the Looking Glass","Chapter 5 Madness Within","Chapter 6 Lost in the Mist","Chapter 7 The Horror Beneath","Chapter 8 Substance of Terror"];
+var roomDeckSetup = [
+	[0], //no level 0
+	[4,10,17,21,22,28], //chapter 1
+	[3,5,10,12,16,23,29], // chapter 2
+	[18,19,20,22,23,25,26,28], //chapter 3
+	[6,7,8,9,11,24], //chapter 4
+	[1,3,17,18,24,25,27], //chapter 5
+	[1,2,3,4,5,10,11,12,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29], //chapter 6
+	[6,8,12,14,15,24], //chapter 7
+	[1,19,20,23,26,28] //chapter 8
+];
+var devouredDeckSetup = [
+	[0], //no level 0
+	[1,2,8,12,15,20], //chapter 1
+	[2,4,6,7,8,21], //chapter 2
+	[1,2,9,12,13,17,29], //chatper 3
+	[2,12,13,17,21,23,25], //chapter 4
+	[2,26,28,29], //chapter 5
+	[6,7,8,9,13,30], //chapter 6
+	[1,2,4,7,16,18], //chapter 7
+	[2,9,10,12,17,24] //chapter 8
+];
+var spawn = [
+	[0], //no level 0
+	[3,3,2,3,3,2,3,3,4], //Chapter 1
+	[3,2,3,2,3,3,3,3,3,3], // Chapter 2
+	[3,2,3,2,3,2,3,2,3,3,4], // Chapter 3
+	[3,2,3,2,3,2,3,2,3], //Chapter 4
+	[2,3,3,3,3,3,3,3,4,4], //chapter 5
+	[2,3,3,3,3,3,3,4,4], //chapter 6
+	[4,3,3,3,3,3,3,3,3,3,3,3], //chapter 7
+	[3,2,3,2,3,2,3,3,4,4] //chapter 8
+];
+var eventType = [
+	// 0 is devour, 1,2,3 are Hazard effects, 4 is end
+	[0], //no level 0
+	[0,0,1,0,0,2,0,0,3,4], //Chapter 1
+	[0,0,0,1,0,0,2,0,3,0,4], //Chapter 2
+	[0,0,0,1,0,0,2,0,0,3,0,4], //Chapter 3
+	[1,0,0,2,0,0,3,0,0,4], //Chapter 4
+	[0,0,1,0,0,2,0,0,3,0,4], //chapter 5
+	[3,2,1,2,3,2,1,2,3,4], //chapter 6
+	[1,0,0,0,0,0,0,2,2,2,2,2,4], //chapter 7
+	[0,1,0,1,0,1,0,0,2,0,4] //chapter 8
+];
+var hazardEffects = [
+	[0], //no level 0
+	// Chapter 1 Crawling Asphyxia
+	["Each investigator exhausts 1 oxygen.  Then the maximum oxygen level is reduced to 5.","Each investigator exhausts 1 oxygen.  Then the maximum oxygen level is reduced to 5.","Each investigator exhausts 3 oxygen.  Then the maximum oxygen level is reduced to 0. Until the end of the game, an investigator must exhaust 1 oxygen before performing an action (except for rest action) in any space instead of just in flooded spaces."],
+	// Chapter 2 Last Shuttle to Hell
+	["If the total energy level in Room 30 is less than 3, place a value -1 Energy Token in Room 30.","If the total energy level in Room 30 is less than 8, place a value -1 Energy Token in Room 30.","If the total energy level in Room 30 is less than 11, place a value -1 Energy Token in Room 30."],
+	// Chapter 3 Bathophobia
+	["If there are three Test Subjects on the board, immediately activate Bathophobia once.","If there are two or more Test Subjects on the board, immediately activate Bathophobia once.","Immediately activate Bathophobia once."],
+	// Chapter 4 Through the looking glass
+	["Until the next Hazard, at the beginning of each activation phase, roll 1 monster die.  On tentacles result, Place a madness token on William's card.","Until the next Hazard, at the beginning of each activation phase, roll 1 monster die.  On tentacles or eye result, Place a madness token on William's card.","Until the next end of the game, at the beginning of each activation phase, roll 1 monster die.  On tentacles, eye, or claw result, Place a madness token on William's card."],
+	// Chapter 5 Madness Within
+	["Each investigator rolls 1 Monster Die.  On Tentacles, Discard a success toekn from the face-down Identity Marker held by the investigator.","Each investigator rolls 1 Monster Die.  On Tentacles or Eye, Discard a success toekn from the face-down Identity Marker held by the investigator.","Each investigator rolls 1 Monster Die.  On Tentacles, Eye, or Claw, Discard a success toekn from the face-down Identity Marker held by the investigator."],
+	// Chapter 6 Lost in the Mist
+	["No Effect.","During this round, each new room assembled to the game board is flooded. Place a flooded marker in each space of that room.","During this round, after a new room is assembled to the game board, discard the top card of the spawn deck, and spawn 1 corresponding monster in the spawn space of that room"],
+	// Chapter 7
+	["No Effect.","If the 'Preserving Humanity' scenario card has been revealed, skip the spawn phase.  Otherwise, no effect."],
+	// Chapter 8
+	["Check each Inhabitant Card from Left to right: /n If there are two or more success tokens on the Inhabitant Card, flip it to the New Flesh side.  Place the Substance monster figure in the space that containers the corresponding Inhabitant Marker.  Then place the marker on top of other Inhabitant Markers on the Substance monster card. /n If there's no Inhabitant Card with two or more success tokens on it, resolve the steps above in the first Inhabitant Card from the left.","For each Inhabitant Card from left to right: Flip it to the New Flesh side.  Place the Substance monster figure in the space that containers the corresponding Inhabitant Marker.  Then place the marker on top of other Inhabitant Markers on the Substance monster card."]
+];
+var eventImage = [0,"url(img/ch1event.jpg)","url(img/ch2event.jpg)","url(img/ch3event.jpg)","url(img/ch4event.jpg)","url(img/ch5event.jpg)","url(img/ch6event.jpg)","url(img/ch7event.jpg)","url(img/ch8event.jpg)"];
+/*
+Monster Constants
+1, 11, 2, 21, 12, 111, 3, 22, 211, 121, 112
+*/
+var spawncardData = [ //holds the spawn card information in an array of spawncard[card number] [monster name, spawn amounts]
+	// Core Game Monsters
+	["Agony",21], ["Agony",12], ["Agony",111], ["Agony",111], //0-3
+	["Blind",11], ["Blind",11], ["Blind",11], ["Blind",2], //4-7
+	["Delirium",11], ["Delirium",11], ["Delirium",11], ["Delirium",2], //8-11
+	["Husk",11], ["Husk",11], ["Husk",11], ["Husk",2], //12-15
+	["Hysteria",3], ["Hysteria",12], ["Hysteria",21], ["Hysteria",111], //16-19
+	["Putrid",1], ["Putrid",1], ["Putrid",1], ["Putrid",1], //20-23
+	["Ravenous",3], ["Ravenous",111], ["Ravenous",12], ["Ravenous",21], //24-27
+	["Twisted", 1],["Twisted", 1],["Twisted", 1],["Twisted", 1], //28-31
+	["Bathophobia",1], ["Bathophobia",1], //32-33
+	["Madness Within",1], ["Madness Within",1], //34-35
+	["Substance",1], ["Substance",1], // 36-37
+	// Endless Nightmares
+	/*
+	["Grudge",111],["Grudge",111],["Grudge",21],["Grudge",12],
+	["Bloated",22],["Bloated",211],["Bloated",121],["Bloated",112],
+	["Parasite",22],["Parasite",211],["Parasite",121],["Parasite",112],
+	["Purge",2],["Purge",11],["Purge",11],["Purge",11],
+	["Hallucination",2],["Hallucination",11],["Hallucination",11],["Hallucination",11],
+	["Despair",11],["Despair",11],["Despair",11],["Despair",11],
+	["Wrecked",1],["Wrecked",1],["Wrecked",1],["Wrecked",1],
+	["Immortal",1],["Immortal",1],["Immortal",1],["Immortal",1],
+	["Drifter",1],["Drifter",1],["Drifter",1],["Drifter",1],
+	["Unbound",1],["Unbound",1],
+	["Obscure",1],["Obscure",1],
+	["Nest",1],["Nest",1]
+	*/
+];
+
+function setup(scenarioNumber) { //setup(scenario # from button)
+	//Set or Reset scenario, title, and texts
+	scenario = scenarioNumber;
+	SpawnTypetopcard = 0;
+	DevouredRoomtopcard = 0;
+	Roomtopcard = 0;
+	turn = 0;
+	// create
+	drawtable(scenarioNumber);
+	document.getElementById("title").innerHTML = scenarioTitle[scenario]; // Set Title
+	document.getElementById("D0").classList.add("currentTurn"); // highlight the start box
+	document.getElementById("setupSection").style.display = "none";
+	document.getElementById("playSection").style.display = "inline";
+	document.getElementById("spawnTD").innerHTML = ""; //clear
+	// Create devoured deck
+	for (i = 0; i < devouredDeckSetup[scenario].length; i++) {
+		devouredDeck[i] = devouredDeckSetup[scenario][i];
+	}
+	// Create room deck
+	for (i = 0; i < roomDeckSetup[scenario].length; i++) {
+		roomDeck[i] = roomDeckSetup[scenario][i];
+	}
+	// create spawn deck
+	buildSpawnDeck();
+	// shuffle all the decks
+	shuffle(devouredDeck);
+	shuffle(roomDeck);
+	shuffle(spawnDeck);
+}
+function DevourPhase() {
+	advanceTurnBox();
+	// Resolve an event
+	nextEvent();
+	// Spawn Creatures
+	document.getElementById("spawnTD").innerHTML = ""; //clear text box
+	for (n = 0; n < spawn[scenario][turn]; n++) {
+		switch (spawncardData[spawnDeck[SpawnTypetopcard]][1]) {
+			case 1: //spawn 1 figure
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn the "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 11: //spawn 1 figure in each of two rooms
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 2: //spawn 2 figures
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 111: //spawn 1 figure in each of 3 rooms
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 12: //spawn 1 figure in one room and 2 figures in a second room
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 21: //spawn 2 figures in one room and 1 figure in a second room
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 3: //spawn 3 figures in one room
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 3 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 22: //spawn 2 figures in each of 2 rooms
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 211: //spawn 2 figure in one room 1 figure in each of 2 rooms
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 121: //spawn 2 figure in one room 1 figure in each of 2 rooms
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+			case 112: //spawn 2 figure in one room 1 figure in each of 2 rooms
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 1 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br>";
+				nextSpawnCard();
+				document.getElementById("spawnTD").innerHTML = document.getElementById("spawnTD").innerHTML + "Spawn 2 "+ spawncardData[spawnDeck[SpawnTypetopcard]][0] + " into room " + devouredDeck[DevouredRoomtopcard] +". <br><br>";
+				nextSpawnCard();
+				break;
+		}
+		//cycle the spawn card
+		SpawnTypetopcard++;
+		if (SpawnTypetopcard = spawnDeck.length) {
+			SpawnTypetopcard = 0;
+			shuffle(spawnDeck);
+		}
+	}
+	//Set any persistent hazard
+		//TBA
+	//advance turn coutner
+	turn++;
+}
+function shuffle(order) {
+	for (x = 0; x < 3; x++) {
+		for (i = order.length - 1; i > 0; i--) {
+			var swap = Math.floor((Math.random() * (i-1)));
+			var placeholder = order[i];
+			order[i] = order[swap];
+			order[swap] = placeholder;
+		}
+	}
+}
+function advanceTurnBox() {
+	switch (turn) {
+		case 0:
+			document.getElementById("D0").classList.remove("currentTurn");
+			document.getElementById("D1").classList.add("currentTurn");
+			break;
+		case 1:
+			document.getElementById("D1").classList.remove("currentTurn");
+			document.getElementById("D2").classList.add("currentTurn");
+		break;
+		case 2:
+			document.getElementById("D2").classList.remove("currentTurn");
+			document.getElementById("D3").classList.add("currentTurn");
+			break;
+		case 3:
+			document.getElementById("D3").classList.remove("currentTurn");
+			document.getElementById("D4").classList.add("currentTurn");
+			break;
+		case 4:
+			document.getElementById("D4").classList.remove("currentTurn");
+			document.getElementById("D5").classList.add("currentTurn");
+			break;
+		case 5:
+			document.getElementById("D5").classList.remove("currentTurn");
+			document.getElementById("D6").classList.add("currentTurn");
+			break;
+		case 6:
+			document.getElementById("D6").classList.remove("currentTurn");
+			document.getElementById("D7").classList.add("currentTurn");
+			break;
+		case 7:
+			document.getElementById("D7").classList.remove("currentTurn");
+			document.getElementById("D8").classList.add("currentTurn");
+		break;
+		case 8:
+			document.getElementById("D8").classList.remove("currentTurn");
+			document.getElementById("D9").classList.add("currentTurn");
+			break;
+		case 9:
+			document.getElementById("D9").classList.remove("currentTurn");
+			document.getElementById("D10").classList.add("currentTurn");
+			break;
+		case 10:
+			document.getElementById("D10").classList.remove("currentTurn");
+			document.getElementById("D11").classList.add("currentTurn");
+			break;
+		case 11:
+			document.getElementById("D11").classList.remove("currentTurn");
+			document.getElementById("D12").classList.add("currentTurn");
+			break;
+		}
+	}
+function nextSpawnCard() {
+	DevouredRoomtopcard = DevouredRoomtopcard + 1;
+	if (DevouredRoomtopcard == devouredDeck.length) {
+		DevouredRoomtopcard = 0;
+	}
+	//Diagnostics
+	var room = "diag";
+	document.getElementById(room).innerHTML = " Room Spawn Order <br>";
+	for (i = 0; i < devouredDeck.length; i++) {
+			document.getElementById(room).innerHTML = document.getElementById(room).innerHTML + "  " + devouredDeck[i];
+	}
+}
+function nextEvent() {
+	switch (eventType[scenario][turn]) {
+		// Devour Room Event
+		case 0:
+			document.getElementById("eventTD").innerHTML = "Devour Room " + roomDeck[Roomtopcard]; //state the event
+			// make space for the new card by shifting all the values over 1
+			var startsize = devouredDeck.length;
+			for (i = startsize; i > DevouredRoomtopcard; i--) {
+				devouredDeck[i] = devouredDeck[i-1];
+			}
+			// add the new card to the 'top' of the devoured deck
+			devouredDeck[DevouredRoomtopcard] = roomDeck[Roomtopcard];
+			//cycle Roomtopcard to mark the next room card as the top card
+			Roomtopcard = Roomtopcard + 1;
+			break;
+		// Hazard 1 Event
+		case 1:
+			document.getElementById("eventTD").innerHTML = hazardEffects[scenario][0];
+			break;
+		// Hazard 2 Event
+		// NEED CHAPTER 7 EXCEPTION
+		case 2:
+			document.getElementById("eventTD").innerHTML = hazardEffects[scenario][1];
+			break;
+		// Hazard 3 Event
+		case 3:
+		// NEED CHAPTER 6 EXCEPTION
+			document.getElementById("eventTD").innerHTML = hazardEffects[scenario][2];
+			break;
+		// End Game
+		case 4:
+			document.getElementById("eventTD").innerHTML = "Game Over";
+			break;
+	}
+	//document.getElementById("eventTD").innerHTML = document.getElementById("eventTD").innerHTML + "<br> "+ devouredDeck.length;
+}
+function buildSpawnDeck() {
+	var x = 0;
+	if (AgonyCB.checked == true) {
+		for(i=0;i<4;i++) {
+			spawnDeck[x] = i;
+			x++;
+		}
+	}
+	if (BlindCB.checked == true) {
+		for(i=4;i<8;i++) {
+			spawnDeck[x] = i;
+			x++;
+		}
+	}
+	if (DeliriumCB.checked == true) {
+		for(i=8;i<12;i++) {
+			spawnDeck[x] = i;
+			x++;
+		}
+	}
+	if (HuskCB.checked == true) {
+		for(i=12;i<16;i++) {
+			spawnDeck[x] = i;
+			x++;
+		}
+	}
+	if (HysteriaCB.checked == true) {
+		for(i=16;i<20;i++) {
+			spawnDeck[x] = i;
+			x++;
+		}
+	}
+	if (PutridCB.checked == true) {
+		for(i=20;i<24;i++) {
+			spawnDeck[x] = i;
+			x++;
+		}
+	}
+	if (RavenousCB.checked == true) {
+		for(i=24;i<28;i++) {
+			spawnDeck[x] = i;
+			x++;
+		}
+	}
+}
+function cbfunction(trigger, type) {
+	if(type == 1 && trigger.checked == true) { //uncheck other epic monsters
+		uncheckEpics(trigger);
+	}
+	if (countChecked() == 6){ //count all the things
+		document.getElementById("setupButton").disabled = false;
+	}
+	else {
+		document.getElementById("setupButton").disabled = true;
+	}
+	// unlock the setup button
+}
+function countChecked() {
+	var checked = 0;
+	if (document.getElementById("AgonyCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("BlindCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("DeliriumCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("HuskCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("HysteriaCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("PutridCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("RavenousCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("TwistedCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("BathophobiaCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("MadnessWithinCB").checked == true) {
+		checked++;
+	}
+	if (document.getElementById("SubstanceCB").checked == true) {
+		checked++;
+	}
+	return checked;
+}
+function uncheckEpics(trigger){
+	//uncheck all epic monsters
+	document.getElementById("BathophobiaCB").checked = false;
+	document.getElementById("MadnessWithinCB").checked = false;
+	document.getElementById("SubstanceCB").checked = false;
+	//check the trigger
+	trigger.checked = true;
+}
+function drawtable(){
+	var space = "<table id='DevourTable'> <tr>";
+	for (i = 0; i < eventType[scenario].length + 1; i++) {
+		space += "<td id='D" + i + "' class='devourTableCell'></td>";
+	}
+	space += "</tr> </table>";
+	document.getElementById("a").innerHTML = space;
+	document.getElementById("a").style.backgroundImage = eventImage[scenario];
+}
+
+	//<tr>
+	//<td id='D0'"' class='devourTableCell'></td>
+</script>
+</head>
+
+<!-- Comments -->
+
+<body>
+<section id="setupSection">
+<table id="selectionTable" class="selectionPane">
+	<tr>
+		<td> Select a Scenario </td>
+	</tr>
+	<tr>
+		<td>
+			<select id='ScenarioSelect'>
+				<option value="1" selected>Chapter 1 Crawling Asphyxia </option>
+				<option value="2">Chapter 2 Last Shuttle to Hell </option>
+				<option value="3">Chapter 3 Bathophobia </option>
+				<option value="4">Chapter 4 Through the Looking Glass </option>
+				<option value="5">Chapter 5 Madness Within </option>
+				<option value="6">Chapter 6 Lost in the Mist </option>
+				<option value="7">Chapter 7 The Horror Beneath </option>
+				<option value="8">Chapter 8 Substance of Terror </option>
+			</select>
+		</td>
+	</tr>
+	<div class="selectionPane">
+	<tr>
+		<td> Monsters <td>
+	</tr>
+	<tr>
+		<td ><div id="cb"><label><input type='checkbox' id='AgonyCB' onclick='cbfunction(document.getElementById("AgonyCB"),0)'><span> Agony </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='BlindCB' onclick='cbfunction(document.getElementById("BlindCB"),0)'><span> Blind </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='DeliriumCB' onclick='cbfunction(document.getElementById("DeliriumCB"),0)'><span> Delirium </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='HuskCB' onclick='cbfunction(document.getElementById("HuskCB"),0)'><span> Husk </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='HysteriaCB' onclick='cbfunction(document.getElementById("HysteriaCB"),0)'><span> Hysteria </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='PutridCB' onclick='cbfunction(document.getElementById("PutridCB"),0)'><span> Putrid </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='RavenousCB' onclick='cbfunction(document.getElementById("RevenousCB"),0)'><span> Ravenous </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='TwistedCB' onclick='cbfunction(document.getElementById("TwistedCB"),0)'><span> Twisted </span></select></label></div></td>
+	</tr>
+</div>
+	<tr>
+		<td> Epic Monsters </td>
+	</tr>
+	<tr>
+		<td ><div id="cb"><label><input type='checkbox' id='BathophobiaCB' onclick='cbfunction(document.getElementById("BathophobiaCB"),1)'><span> Bathophobia </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='MadnessWithinCB' onclick='cbfunction(document.getElementById("MadnessWithinCB"),1)'><span> Madness Within </span></select></label></div></td>
+		<td ><div id="cb"><label><input type='checkbox' id='SubstanceCB' onclick='cbfunction(document.getElementById("SubstanceCB"),1)'><span> Substance </span></select></label></div></td>
+</table>
+<button type='button' id='setupButton' onclick='setup(document.getElementById("ScenarioSelect").value)' disabled> Setup Game </button>
+</section>
+
+<section id="playSection">
+<h2 id="title"> Scenario Title </h2>
+<div id="a">
+</div>
+<!--
+<table id="DevourTable">
+	<tr>
+		<td id="D0" class="devourTableCell"></td>
+		<td id="D1" class="devourTableCell"></td>
+		<td id="D2" class="devourTableCell"></td>
+		<td id="D3" class="devourTableCell"></td>
+		<td id="D4" class="devourTableCell"></td>
+		<td id="D5" class="devourTableCell"></td>
+		<td id="D6" class="devourTableCell"></td>
+		<td id="D7" class="devourTableCell"></td>
+		<td id="D8" class="devourTableCell"></td>
+		<td id="D9" class="devourTableCell"></td>
+		<td id="D10" class="devourTableCell"></td>
+		<td id="D11" class="devourTableCell"></td>
+	</tr>
+</table>
+-->
+<table>
+	<tr>
+		<td id="eventTD"> Event Info </td>
+	</tr>
+	<tr>
+		<td id="spawnTD"> Spawn Stuff </td>
+	</tr>
+</table>
+
+<button type='button' id='nextDevourButton' onclick='DevourPhase()'> Next Devour Phase </button>
+</section>
+<div id="diag"> </div>
+</body>
+</html>
